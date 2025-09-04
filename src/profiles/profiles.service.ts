@@ -12,7 +12,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly supabaseService: SupabaseService) { }
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   private handleSupabaseError(
     error: PostgrestError | null,
@@ -75,13 +75,25 @@ export class ProfilesService {
 
   async findAll(token: string) {
     const supabaseAdmin = this.supabaseService.getAdminClient();
-    const {
-      data: { users: authUsers },
-      error: authError,
-    } = await supabaseAdmin.auth.admin.listUsers();
+    let page = 1;
+    let allAuthUsers: any[] = [];
 
-    if (authError) {
-      throw new InternalServerErrorException(authError.message);
+    while (true) {
+      const {
+        data: { users },
+        error,
+      } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 100 });
+
+      if (error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
+      if (!users || users.length === 0) break;
+
+      allAuthUsers = [...allAuthUsers, ...users];
+
+      if (users.length < 100) break;
+      page++;
     }
 
     const { data: profiles, error: profileError } = await supabaseAdmin
@@ -91,7 +103,7 @@ export class ProfilesService {
     this.handleSupabaseError(profileError, 'findAll profiles');
     if (!profiles) return [];
 
-    const usersWithProfiles = authUsers
+    const usersWithProfiles = allAuthUsers
       .map((user) => {
         const profile = profiles.find((p) => p.id === user.id);
         return {
