@@ -278,6 +278,8 @@ export class ReadingsService {
     }
 
     private _processReadingsLogic(readings: RawReading[]): ProcessedRow[] {
+        if (!readings || readings.length === 0) return [];
+
         const readingsWithFlowMeter: ReadingWithFlowMeter[] = readings.map(
             (current, index, arr) => {
                 let flowMeter: number | string = '-';
@@ -295,10 +297,12 @@ export class ReadingsService {
                 return { ...current, flowMeter, is_editable };
             },
         );
+
         const result: ProcessedRow[] = [];
         let i = 0;
         while (i < readingsWithFlowMeter.length) {
             const startReading = readingsWithFlowMeter[i];
+
             if (startReading.operation_type === 'manual' || startReading.operation_type === 'stop') {
                 let endIndex = i;
                 while (
@@ -309,8 +313,10 @@ export class ReadingsService {
                     endIndex++;
                     if (readingsWithFlowMeter[endIndex].operation_type === 'stop') break;
                 }
+
                 const manualBlock = readingsWithFlowMeter.slice(i, endIndex + 1);
                 result.push(...manualBlock);
+
                 const lastReadingInBlock = manualBlock[manualBlock.length - 1];
                 const nextReading = readingsWithFlowMeter[endIndex + 1];
                 const totalFlow = manualBlock.reduce((sum, r) => sum + (Number(r.flowMeter) || 0), 0);
@@ -320,24 +326,27 @@ export class ReadingsService {
                 const diffMinutes = Math.floor(diffMs / 60000);
                 const pad = (num: number) => String(num).padStart(2, '0');
                 const durationStr = `${pad(Math.floor(diffMinutes / 60))}:${pad(diffMinutes % 60)}`;
+
                 if (lastReadingInBlock.operation_type === 'stop') {
-                     result.push({
-                        id: `stop-${lastReadingInBlock.id}`, isStopRow: true,
+                    result.push({
+                        id: `stop-summary-${lastReadingInBlock.id}`, isStopRow: true,
                         totalFlow, duration: durationStr,
                         customer_code: lastReadingInBlock.customer_code,
                         recorded_at: lastReadingInBlock.recorded_at,
                     });
                 } else if (nextReading) {
                     if (nextReading.operation_type === 'dumping') {
-                        const endTimeStr = endTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
                         result.push({
-                            id: `total-before-dump-${lastReadingInBlock.id}`,
-                            isDumpingTotalRow: true, totalFlow, duration: endTimeStr,
+                            id: `total-before-dump-${lastReadingInBlock.id}`, isDumpingTotalRow: true,
+                            totalFlow, duration: durationStr,
                             customer_code: lastReadingInBlock.customer_code,
                             recorded_at: lastReadingInBlock.recorded_at,
                             storage_number: lastReadingInBlock.storage_number,
                         });
-                    } else if (nextReading.storage_number !== lastReadingInBlock.storage_number) {
+                    } else if (
+                        nextReading.customer_code === lastReadingInBlock.customer_code &&
+                        nextReading.storage_number !== lastReadingInBlock.storage_number
+                    ) {
                         result.push({
                             id: `change-${lastReadingInBlock.id}`, isChangeRow: true,
                             totalFlow, duration: durationStr,
@@ -347,8 +356,7 @@ export class ReadingsService {
                     }
                 }
                 i = endIndex + 1;
-            }
-            else if (startReading.operation_type === 'dumping') {
+            } else if (startReading.operation_type === 'dumping') {
                 let endIndex = i;
                 while (
                     endIndex + 1 < readingsWithFlowMeter.length &&
@@ -356,20 +364,24 @@ export class ReadingsService {
                 ) {
                     endIndex++;
                 }
-                const dumpingBlock = readingsWithFlowMeter.slice(i, endIndex + 1);
-                result.push(...dumpingBlock);
-                const startTime = new Date(dumpingBlock[0].recorded_at);
-                const endTime = new Date(dumpingBlock[dumpingBlock.length - 1].recorded_at);
-                const diffMs = endTime.getTime() - startTime.getTime();
+
+                const dumpingSourceBlock = readingsWithFlowMeter.slice(i, endIndex + 1);
+                result.push(...dumpingSourceBlock);
+
+                const overallStartTime = new Date(dumpingSourceBlock[0].recorded_at);
+                const overallEndTime = new Date(dumpingSourceBlock[dumpingSourceBlock.length - 1].recorded_at);
+                const diffMs = overallEndTime.getTime() - overallStartTime.getTime();
                 const diffMinutes = Math.floor(diffMs / 60000);
                 const pad = (num: number) => String(num).padStart(2, '0');
                 const duration = `${pad(Math.floor(diffMinutes / 60))}:${pad(diffMinutes % 60)}`;
+
                 result.push({
                     id: `dumping-summary-${startReading.id}`, isDumpingSummary: true,
                     totalFlow: 0, duration,
                     customer_code: startReading.customer_code,
-                    recorded_at: endTime.toISOString(),
+                    recorded_at: overallEndTime.toISOString(),
                 });
+
                 i = endIndex + 1;
             } else {
                 result.push(startReading);
