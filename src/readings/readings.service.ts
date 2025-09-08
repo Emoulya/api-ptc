@@ -201,6 +201,19 @@ export class ReadingsService {
         this.handleSupabaseError(error, `remove reading id: ${id}`);
     }
 
+    async removeByCustomer(customerCode: string, token: string) {
+        if (!customerCode || customerCode.trim() === '') {
+            throw new BadRequestException('Customer code cannot be empty.');
+        }
+        const supabase = this.supabaseService.getClient(token);
+        const { error } = await supabase
+            .from('readings')
+            .delete()
+            .eq('customer_code', customerCode);
+            
+        this.handleSupabaseError(error, `remove readings for customer: ${customerCode}`);
+    }
+
     async removeAll(token: string) {
         const supabase = this.supabaseService.getClient(token);
         const { error } = await supabase.from('readings').delete().not('id', 'is', null);

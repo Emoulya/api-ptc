@@ -100,7 +100,6 @@ export class ReadingsController {
         return this.readingsService.findAll(token, query);
     }
 
-    // --- PEMBARUAN ENDPOINT UPDATE ---
     @Put(':id')
     @Roles('admin', 'operator') // Operator sekarang bisa mengakses endpoint ini
     @ApiOperation({ summary: 'Update a reading (Admin: any, Operator: own within 2 hours)' })
@@ -114,9 +113,7 @@ export class ReadingsController {
         const userRole = req.user.role; // Mendapatkan peran dari user yang sudah divalidasi
         return this.readingsService.update(id, updateReadingDto, token, operatorId, userRole);
     }
-    // --- AKHIR PEMBARUAN ---
 
-    // --- PEMBARUAN ENDPOINT DELETE ---
     @Delete(':id')
     @Roles('admin', 'operator') // Operator sekarang bisa mengakses endpoint ini
     @HttpCode(204)
@@ -127,7 +124,16 @@ export class ReadingsController {
         const userRole = req.user.role;
         return this.readingsService.remove(id, token, operatorId, userRole);
     }
-    // --- AKHIR PEMBARUAN ---
+
+    @Delete('by-customer/:customerCode')
+    @Roles('admin')
+    @HttpCode(204)
+    @ApiOperation({ summary: 'Delete all readings for a specific customer (Admin Only)' })
+    @ApiParam({ name: 'customerCode', description: 'The customer code to delete readings for', example: 'CUST-001' })
+    removeByCustomer(@Param('customerCode') customerCode: string, @Request() req: any) {
+        const token = this.getTokenFromRequest(req);
+        return this.readingsService.removeByCustomer(customerCode, token);
+    }
 
     @Delete('all')
     @Roles('admin')
