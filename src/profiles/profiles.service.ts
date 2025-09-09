@@ -75,45 +75,32 @@ export class ProfilesService {
 
   async findAll(token: string) {
     const supabaseAdmin = this.supabaseService.getAdminClient();
-    let page = 1;
-    let allAuthUsers: any[] = [];
+    
+    const { data: authUsers, error: authError } = await supabaseAdmin
+        .from('user_emails') // Mengambil data dari VIEW 'user_emails'
+        .select('id, email');
 
-    while (true) {
-      const {
-        data: { users },
-        error,
-      } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 100 });
-
-      if (error) {
-        throw new InternalServerErrorException(error.message);
-      }
-
-      if (!users || users.length === 0) break;
-
-      allAuthUsers = [...allAuthUsers, ...users];
-
-      if (users.length < 100) break;
-      page++;
+    if (authError) {
+        console.error("Error fetching from user_emails view:", authError);
+        throw new InternalServerErrorException("Failed to fetch user emails from view: " + authError.message);
     }
 
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('*');
+      .select('id, username, role');
 
     this.handleSupabaseError(profileError, 'findAll profiles');
     if (!profiles) return [];
 
-    const usersWithProfiles = allAuthUsers
-      .map((user) => {
-        const profile = profiles.find((p) => p.id === user.id);
+    const usersWithProfiles = profiles.map(profile => {
+        const authUser = authUsers.find(u => u.id === profile.id);
         return {
-          id: user.id,
-          username: profile?.username || 'N/A',
-          role: profile?.role || 'N/A',
-          email: user.email,
+            id: profile.id,
+            username: profile.username,
+            role: profile.role,
+            email: authUser ? authUser.email : 'N/A',
         };
-      })
-      .filter((p) => p.role !== 'N/A');
+    });
 
     return usersWithProfiles;
   }
@@ -147,11 +134,9 @@ export class ProfilesService {
     return data;
   }
 
-  // ✅ FIXED DELETE ACCOUNT LOGIC
   async remove(id: string): Promise<{ message: string }> {
     const supabaseAdmin = this.supabaseService.getAdminClient();
 
-    // cek user ada di auth
     const { data: userData, error: userError } =
       await supabaseAdmin.auth.admin.getUserById(id);
 
@@ -159,7 +144,6 @@ export class ProfilesService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // hapus profile dari tabel
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()
@@ -167,7 +151,6 @@ export class ProfilesService {
 
     this.handleSupabaseError(profileError, 'delete profile');
 
-    // hapus dari Supabase Auth
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
     if (authError) {
       throw new InternalServerErrorException(
