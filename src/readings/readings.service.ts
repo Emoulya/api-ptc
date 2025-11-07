@@ -303,7 +303,7 @@ export class ReadingsService {
                     (current.operation_type === previous.operation_type || (current.operation_type === 'stop' && previous.operation_type === 'manual'))
                 ) {
                     const diff = Number(current.flow_turbine) - Number(previous.flow_turbine);
-                    flowMeter = isNaN(diff) || diff < 0 ? '-' : diff;
+                    flowMeter = isNaN(diff) ? '-' : diff;
                 }
                 const twoHoursInMs = 2 * 60 * 60 * 1000;
                 const is_editable = (new Date().getTime() - new Date(current.created_at).getTime()) <= twoHoursInMs;
