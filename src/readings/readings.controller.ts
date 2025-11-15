@@ -114,6 +114,15 @@ export class ReadingsController {
         return this.readingsService.update(id, updateReadingDto, token, operatorId, userRole);
     }
 
+    @Delete('all')
+    @Roles('admin')
+    @HttpCode(204)
+    @ApiOperation({ summary: 'Delete all readings (Admin Only)' })
+    removeAll(@Request() req: any) {
+        const token = this.getTokenFromRequest(req);
+        return this.readingsService.removeAll(token);
+    }
+
     @Delete(':id')
     @Roles('admin', 'operator') // Operator sekarang bisa mengakses endpoint ini
     @HttpCode(204)
@@ -133,15 +142,6 @@ export class ReadingsController {
     removeByCustomer(@Param('customerCode') customerCode: string, @Request() req: any) {
         const token = this.getTokenFromRequest(req);
         return this.readingsService.removeByCustomer(customerCode, token);
-    }
-
-    @Delete('all')
-    @Roles('admin')
-    @HttpCode(204)
-    @ApiOperation({ summary: 'Delete all readings (Admin Only)' })
-    removeAll(@Request() req: any) {
-        const token = this.getTokenFromRequest(req);
-        return this.readingsService.removeAll(token);
     }
 
      @Post('dumping')

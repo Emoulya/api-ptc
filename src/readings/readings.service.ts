@@ -1,3 +1,4 @@
+// src\readings\readings.service.ts
 import {
     Injectable,
     InternalServerErrorException,
@@ -139,7 +140,7 @@ export class ReadingsService {
         
         if (userRole === 'operator') {
             if (readingToUpdate.operator_id !== operatorId) {
-                throw new ForbiddenException('You can only edit your own entries.');
+                throw new ForbiddenException('Anda hanya dapat mengedit entri Anda sendiri.');
             }
             const twoHoursInMs = 2 * 60 * 60 * 1000;
             if (new Date().getTime() - new Date(readingToUpdate.created_at).getTime() > twoHoursInMs) {
@@ -189,7 +190,7 @@ export class ReadingsService {
 
         if (userRole === 'operator') {
             if (readingToDelete.operator_id !== operatorId) {
-                throw new ForbiddenException('You can only delete your own entries.');
+                throw new ForbiddenException('Anda hanya dapat menghapus entri Anda sendiri.');
             }
             const twoHoursInMs = 2 * 60 * 60 * 1000;
             if (new Date().getTime() - new Date(readingToDelete.created_at).getTime() > twoHoursInMs) {
