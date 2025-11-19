@@ -92,20 +92,31 @@ export class ReadingsService {
     async findAll(token: string, filters: QueryReadingDto) {
         const supabase = this.supabaseService.getClient(token);
         const now = new Date();
+
+        // memastikan kita mendapatkan tanggal "hari ini" di Indonesia, bukan di server UTC
+        const yearWIB = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }));
+        const monthWIB = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta', month: '2-digit' }));
+        const dayWIB = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta', day: '2-digit' }));
+
         let startDate = new Date();
         let endDate = new Date(now);
+
         switch (filters.timeRange) {
             case 'day':
-                startDate = new Date(now.setHours(0, 0, 0, 0));
+                startDate = new Date(Date.UTC(yearWIB, monthWIB - 1, dayWIB, -7, 0, 0, 0));
                 break;
             case 'week':
-                const firstDayOfWeek = now.getDate() - now.getDay();
-                startDate = new Date(now.setDate(firstDayOfWeek));
-                startDate.setHours(0, 0, 0, 0);
+                const todayInWIB = new Date(Date.UTC(yearWIB, monthWIB - 1, dayWIB));
+                const dayOfWeek = todayInWIB.getUTCDay();
+                
+                const firstDayOfWeek = new Date(todayInWIB);
+                firstDayOfWeek.setUTCDate(todayInWIB.getUTCDate() - dayOfWeek);
+                
+                // set ke awal minggu jam 00:00 WIB
+                startDate = new Date(Date.UTC(firstDayOfWeek.getUTCFullYear(), firstDayOfWeek.getUTCMonth(), firstDayOfWeek.getUTCDate(), -7));
                 break;
             case 'month':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                startDate.setHours(0, 0, 0, 0);
+                startDate = new Date(Date.UTC(yearWIB, monthWIB - 1, 1, -7));
                 break;
             case 'all':
             default:
